@@ -22,3 +22,8 @@ select,
 textarea {
     max-width: 280px;
 }
+
+ol li a, 
+.font-size{
+    font: 8pt arial, sans-serif;
+}

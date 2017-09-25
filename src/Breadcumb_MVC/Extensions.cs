@@ -1,62 +1,43 @@
-﻿using System.Globalization;
-using System.Runtime.InteropServices;
+﻿using System.Runtime.InteropServices;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Web;
 using System.Web.Mvc;
 using System.Web.Mvc.Html;
+using Breadcumbs_MVC.Models;
 
 namespace Breadcumbs_MVC
 {
     public static class HtmlExtensions
     {
+        static string _area;
         static string _controller;
         static string _action;
 
         public static IHtmlString BuildBreadcrumbNavigation(this HtmlHelper helper, [Optional]bool mostrar)
-        {          
-            _controller = helper.ViewContext.RouteData.Values["controller"].ToString();
-            _action = helper.ViewContext.RouteData.Values["action"].ToString();
+        {
+            _area = helper.ViewContext.RouteData.Values["area"]?.ToString();
+            _controller = helper.ViewContext.RouteData.Values["controller"]?.ToString();
+            _action = helper.ViewContext.RouteData.Values["action"]?.ToString();            
 
-            
+
             if (ShowInHomeAndAccountController(mostrar))
             {
                 return helper.Raw(string.Empty);
             }
 
+            var menus = MenuItemsService.GetMenusTest();
+
+            var breadcumbList = BreadcumbItem.CreateBreadCumb(menus, _area, _controller, _action);
+
             var breadcrumb = new StringBuilder();
 
             breadcrumb.Append(Constants.OpenBreadCrumb);
 
-            if (IsHomeController() && !IsActionIndex())
+            CreateBreadcumbItem(helper, breadcrumb, new BreadcumbItem(Constants.TitleInitialPage, _area, Constants.HomeController, Constants.ActionIndex, Constants.IsLink));
+
+            foreach (var breadcumbItem in breadcumbList)
             {
-                CreateInitialPageLink(helper, breadcrumb);
-            }
-
-            if (!IsHomeController())
-            {
-                CreateInitialPageLink(helper, breadcrumb);
-
-                //Fazer o select do menu para pegar o titulo do menu principal
-                var menu = "Menu Superior";
-
-                CreateCurrrentMenuText(breadcrumb, menu);
-
-                if (IsActionIndex())
-                {
-                    CreateCurrentControllerText(breadcrumb);
-                }                
-            }
-
-            if (!IsActionIndex())
-            {
-                if (!IsHomeController())
-                {
-                    CreateCurrentControllerLink(helper, breadcrumb);
-                }
-
-                CreateCurrentActionText(breadcrumb); //text
-                //CreateCurrentActionLink(helper, breadcrumb); //link
+                CreateBreadcumbItem(helper, breadcrumb, breadcumbItem);
             }
 
             string html = breadcrumb.Append(Constants.CloseBreadCrumb).ToString();
@@ -64,47 +45,6 @@ namespace Breadcumbs_MVC
             return helper.Raw(html);
         }
 
-        private static void CreateCurrentActionText(StringBuilder breadcrumb)
-        {
-            breadcrumb.Append(Constants.OpenLi);
-            breadcrumb.Append(_action.Titleize()); // like a text
-            breadcrumb.Append(Constants.CloseLi);
-        }
-
-        private static void CreateCurrentActionLink(HtmlHelper helper, StringBuilder breadcrumb)
-        {
-            breadcrumb.Append(Constants.OpenLi);
-            breadcrumb.Append(helper.ActionLink(_action.Titleize(), _action, _controller)); 
-            breadcrumb.Append(Constants.CloseLi);
-        }
-     
-        private static void CreateCurrentControllerLink(HtmlHelper helper, StringBuilder breadcrumb)
-        {
-            breadcrumb.Append(Constants.OpenLi);
-            breadcrumb.Append(helper.ActionLink(_controller.Titleize(), Constants.ActionIndex, _controller));
-            breadcrumb.Append(Constants.CloseLi);
-        }
-
-        private static void CreateCurrentControllerText(StringBuilder breadcrumb)
-        {
-            breadcrumb.Append(Constants.OpenLi);
-            breadcrumb.Append(_controller.Titleize());
-            breadcrumb.Append(Constants.CloseLi);
-        }
-
-        private static void CreateCurrrentMenuText(StringBuilder breadcrumb, string menu)
-        {
-            breadcrumb.Append(Constants.OpenLi);
-            breadcrumb.Append(menu);
-            breadcrumb.Append(Constants.CloseLi);
-        }
-
-        private static void CreateInitialPageLink(HtmlHelper helper, StringBuilder breadcrumb)
-        {
-            breadcrumb.Append(Constants.OpenLi);
-            breadcrumb.Append(helper.ActionLink(Constants.TitleInitialPage, Constants.ActionIndex, Constants.HomeController));
-            breadcrumb.Append(Constants.CloseLi);
-        }
 
         private static bool ShowInHomeAndAccountController(bool mostrar)
         {
@@ -116,27 +56,32 @@ namespace Breadcumbs_MVC
             return _controller == Constants.AccountController;
         }
 
-        private static bool IsActionIndex()
-        {
-            return _action == Constants.ActionIndex;
-        }
-
         private static bool IsHomeController()
         {
             return _controller == Constants.HomeController;
         }
-    }
 
-    public static class StringExtensions
-    {
-        public static string Titleize(this string text)
+        private static void CreateBreadcumbItem(HtmlHelper helper, StringBuilder breadcrumb, BreadcumbItem item)
         {
-            return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(text).ToSentenceCase();
-        }
+            breadcrumb.Append(Constants.OpenLi);
 
-        public static string ToSentenceCase(this string str)
-        {
-            return Regex.Replace(str, "[a-z][A-Z]", m => m.Value[0] + " " + char.ToLower(m.Value[1]));
+            if (!item.IsLink || (string.IsNullOrWhiteSpace(item.Controller) && string.IsNullOrWhiteSpace(item.Action)))
+            {
+                breadcrumb.Append(item.Title);
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(item.Area))
+                {
+                    breadcrumb.Append(helper.ActionLink(item.Title, item.Action, item.Controller));
+                }
+                else
+                {
+                    breadcrumb.Append(helper.ActionLink(item.Title, item.Action, item.Controller, new {area = item.Area}));
+                }
+            }
+
+            breadcrumb.Append(Constants.CloseLi);
         }
     }
 }

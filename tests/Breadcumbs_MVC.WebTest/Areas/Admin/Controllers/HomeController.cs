@@ -1,6 +1,6 @@
 ﻿using System.Web.Mvc;
 
-namespace Breadcumbs_MVC.WebTest.Controllers
+namespace Breadcumbs_MVC.WebTest.Areas.Admin.Controllers
 {
     public class HomeController : Controller
     {
